@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -40,7 +41,7 @@ func NewServer(handler http.Handler) *http.Server {
 func StartServer(ctx context.Context, server *http.Server) error {
 	errChan := make(chan error, 1)
 	go func() {
-		log.Printf("Starting server at http://localhost%s...", server.Addr)
+		slog.Info(fmt.Sprintf("Starting server at http://localhost%s...", server.Addr))
 		if err := server.ListenAndServe(); !errors.Is(
 			err, http.ErrServerClosed,
 		) {
@@ -59,7 +60,7 @@ func StartServer(ctx context.Context, server *http.Server) error {
 	case err := <-errChan:
 		return err
 	case <-sigCtx.Done():
-		log.Println("Received termination signal, shutting down.")
+		slog.Info("Received termination signal, shutting down...")
 	}
 
 	shutDownCtx, cancel := context.WithTimeout(
@@ -75,6 +76,6 @@ func StartServer(ctx context.Context, server *http.Server) error {
 		return err
 	}
 
-	log.Println("Server exited gracefully.")
+	slog.Info("Server exited gracefully.")
 	return nil
 }
