@@ -13,7 +13,7 @@ import (
 )
 
 const updateAssetByID = `-- name: UpdateAssetByID :execrows
-UPDATE asset
+UPDATE assets
 SET
   name = ?,
   warranty_expiry = ?,
@@ -23,11 +23,11 @@ WHERE id = ?
 `
 
 type UpdateAssetByIDParams struct {
-	Name           string         `json:"name"`
-	WarrantyExpiry sql.NullTime   `json:"warranty_expiry"`
-	Status         sql.NullString `json:"status"`
-	EndOfLife      sql.NullTime   `json:"end_of_life"`
-	ID             uuid.UUID      `json:"id"`
+	Name           string       `json:"name"`
+	WarrantyExpiry sql.NullTime `json:"warranty_expiry"`
+	Status         string       `json:"status"`
+	EndOfLife      sql.NullTime `json:"end_of_life"`
+	ID             uuid.UUID    `json:"id"`
 }
 
 func (q *Queries) UpdateAssetByID(ctx context.Context, arg UpdateAssetByIDParams) (int64, error) {
@@ -45,7 +45,7 @@ func (q *Queries) UpdateAssetByID(ctx context.Context, arg UpdateAssetByIDParams
 }
 
 const updateAssetEOLByID = `-- name: UpdateAssetEOLByID :execrows
-UPDATE asset
+UPDATE assets
 SET end_of_life = ?
 WHERE id = ?
 `
@@ -59,7 +59,7 @@ func (q *Queries) UpdateAssetEOLByID(ctx context.Context, endOfLife sql.NullTime
 }
 
 const updateAssetFileByID = `-- name: UpdateAssetFileByID :execrows
-UPDATE asset_file SET
+UPDATE asset_files SET
   content_hash = ?,
   mime_type = ?,
   original_filename = ?,
@@ -90,7 +90,7 @@ func (q *Queries) UpdateAssetFileByID(ctx context.Context, arg UpdateAssetFileBy
 }
 
 const updateAssetNameByID = `-- name: UpdateAssetNameByID :execrows
-UPDATE asset
+UPDATE assets
 SET name = ?
 WHERE id = ?
 `
@@ -104,12 +104,12 @@ func (q *Queries) UpdateAssetNameByID(ctx context.Context, name string, iD uuid.
 }
 
 const updateAssetStatusByID = `-- name: UpdateAssetStatusByID :execrows
-UPDATE asset
+UPDATE assets
 SET status = ?
 WHERE id = ?
 `
 
-func (q *Queries) UpdateAssetStatusByID(ctx context.Context, status sql.NullString, iD uuid.UUID) (int64, error) {
+func (q *Queries) UpdateAssetStatusByID(ctx context.Context, status string, iD uuid.UUID) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateAssetStatusByID, status, iD)
 	if err != nil {
 		return 0, err
@@ -118,7 +118,7 @@ func (q *Queries) UpdateAssetStatusByID(ctx context.Context, status sql.NullStri
 }
 
 const updateAssetWarrantyByID = `-- name: UpdateAssetWarrantyByID :execrows
-UPDATE asset
+UPDATE assets
 SET warranty_expiry = ?
 WHERE id = ?
 `

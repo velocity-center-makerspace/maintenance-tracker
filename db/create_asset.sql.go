@@ -13,17 +13,17 @@ import (
 )
 
 const createAsset = `-- name: CreateAsset :execrows
-INSERT INTO asset
+INSERT INTO assets
 (id, name, warranty_expiry, status, end_of_life)
 VALUES (?, ?, ?, ?, ?)
 `
 
 type CreateAssetParams struct {
-	ID             uuid.UUID      `json:"id"`
-	Name           string         `json:"name"`
-	WarrantyExpiry sql.NullTime   `json:"warranty_expiry"`
-	Status         sql.NullString `json:"status"`
-	EndOfLife      sql.NullTime   `json:"end_of_life"`
+	ID             uuid.UUID    `json:"id"`
+	Name           string       `json:"name"`
+	WarrantyExpiry sql.NullTime `json:"warranty_expiry"`
+	Status         string       `json:"status"`
+	EndOfLife      sql.NullTime `json:"end_of_life"`
 }
 
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64, error) {
@@ -41,7 +41,7 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64
 }
 
 const createAssetFile = `-- name: CreateAssetFile :execrows
-INSERT INTO asset_file
+INSERT INTO asset_files
 (content_hash, mime_type, original_filename, category, asset_id)
 VALUES (?, ?, ?, ?, ?)
 `

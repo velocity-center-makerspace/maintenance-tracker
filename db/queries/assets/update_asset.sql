@@ -1,25 +1,25 @@
 -- name: UpdateAssetNameByID :execrows
-UPDATE asset
+UPDATE assets
 SET name = ?
 WHERE id = ?;
 
 -- name: UpdateAssetWarrantyByID :execrows
-UPDATE asset
+UPDATE assets
 SET warranty_expiry = ?
 WHERE id = ?;
 
 -- name: UpdateAssetStatusByID :execrows
-UPDATE asset
+UPDATE assets
 SET status = ?
 WHERE id = ?;
 
 -- name: UpdateAssetEOLByID :execrows
-UPDATE asset
+UPDATE assets
 SET end_of_life = ?
 WHERE id = ?;
 
 -- name: UpdateAssetFileByID :execrows
-UPDATE asset_file SET
+UPDATE asset_files SET
   content_hash = ?,
   mime_type = ?,
   original_filename = ?,
@@ -27,10 +27,11 @@ UPDATE asset_file SET
 WHERE asset_id = ?;
 
 -- name: UpdateAssetByID :execrows
-UPDATE asset
+UPDATE assets
 SET
   name = ?,
   warranty_expiry = ?,
   status = ?,
   end_of_life = ?
 WHERE id = ?;
+

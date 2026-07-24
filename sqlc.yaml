@@ -1,7 +1,7 @@
 version: "2"
 sql:
   - engine: "sqlite"
-    queries: "db/queries"
+    queries: ["db/queries/assets", "db/queries/tasks"]
     schema: "db/migrations"
     gen:
       go:
@@ -13,7 +13,17 @@ sql:
         overrides:
           - column: "*.id"
             go_type: "github.com/google/uuid.UUID"
-          - column: "asset.warranty_expiry"
+          - column: "assets.warranty_expiry"
             go_type: "database/sql.NullTime"
-          - column: "asset.end_of_life"
+          - column: "assets.end_of_life"
+            go_type: "database/sql.NullTime"
+          - column: "tasks.last_completed"
+            go_type: "database/sql.NullTime"
+          - column: "tasks.next_date"
+            go_type: "database/sql.NullTime"
+          - column: "tasks.start_date"
+            go_type: "database/sql.NullTime"
+          - column: "tasks.end_date"
+            go_type: "database/sql.NullTime"
+          - column: "completion_logs.completed_at"
             go_type: "database/sql.NullTime"

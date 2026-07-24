@@ -13,12 +13,14 @@ import (
 var dbFile = "data/dev.db"
 
 func main() {
-	db, err := db.RunMigrations(dbFile)
+	sqlDB, err := db.RunMigrations(dbFile)
 	if err != nil {
 		slog.Error("Unable to initialize database", "err", err)
 	}
 
-	mux := server.NewMux(db)
+	qry := db.New(sqlDB)
+	mux := server.NewMux(qry)
+	// mux := server.NewMux(sqlDB)
 	ctx := context.Background()
 	srv := server.NewServer(mux)
 

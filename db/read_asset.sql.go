@@ -11,12 +11,39 @@ import (
 	"github.com/google/uuid"
 )
 
+const listAllAssetIDs = `-- name: ListAllAssetIDs :many
+SELECT id FROM assets
+`
+
+func (q *Queries) ListAllAssetIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.QueryContext(ctx, listAllAssetIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAllAssets = `-- name: ListAllAssets :many
-SELECT asset.id, asset.name, asset.warranty_expiry, asset.status, asset.end_of_life, asset_file.content_hash, asset_file.mime_type, asset_file.original_filename, asset_file.category, asset_file.asset_id
-FROM asset
-INNER JOIN asset_file
-  ON asset.id = asset_file.asset_id
-ORDER BY asset.id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+FROM assets
+INNER JOIN asset_files
+  ON assets.id = asset_files.asset_id
+ORDER BY assets.id
 `
 
 type ListAllAssetsRow struct {
@@ -59,12 +86,12 @@ func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error
 }
 
 const listAssetsAfterCursor = `-- name: ListAssetsAfterCursor :many
-SELECT asset.id, asset.name, asset.warranty_expiry, asset.status, asset.end_of_life, asset_file.content_hash, asset_file.mime_type, asset_file.original_filename, asset_file.category, asset_file.asset_id
-FROM asset
-INNER JOIN asset_file
-  ON asset.id = asset_file.asset_id
-WHERE asset.id > ?
-ORDER BY asset.id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+FROM assets
+INNER JOIN asset_files
+  ON assets.id = asset_files.asset_id
+WHERE assets.id > ?
+ORDER BY assets.id
 LIMIT ?
 `
 
@@ -108,11 +135,11 @@ func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit
 }
 
 const listAssetsAfterFirst = `-- name: ListAssetsAfterFirst :many
-SELECT asset.id, asset.name, asset.warranty_expiry, asset.status, asset.end_of_life, asset_file.content_hash, asset_file.mime_type, asset_file.original_filename, asset_file.category, asset_file.asset_id
-FROM asset
-INNER JOIN asset_file
-  ON asset.id = asset_file.asset_id
-ORDER BY asset.id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+FROM assets
+INNER JOIN asset_files
+  ON assets.id = asset_files.asset_id
+ORDER BY assets.id
 LIMIT ?
 `
 
@@ -156,11 +183,11 @@ func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*Lis
 }
 
 const readAsset = `-- name: ReadAsset :one
-SELECT asset.id, asset.name, asset.warranty_expiry, asset.status, asset.end_of_life, asset_file.content_hash, asset_file.mime_type, asset_file.original_filename, asset_file.category, asset_file.asset_id
-FROM asset
-INNER JOIN asset_file
-  ON asset.id = asset_file.asset_id
-WHERE asset.id = ?
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+FROM assets
+INNER JOIN asset_files
+  ON assets.id = asset_files.asset_id
+WHERE assets.id = ?
 `
 
 type ReadAssetRow struct {
