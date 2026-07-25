@@ -7,20 +7,27 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/velocity-center-makerspace/maintenance-tracker/db"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/config"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/server"
 )
 
-var dbFile = "data/dev.db"
+var env *config.Environment
 
 func main() {
-	sqlDB, err := db.RunMigrations(dbFile)
+	sqlDB, err := db.RunMigrations(env.DbFile)
 	if err != nil {
 		slog.Error("Unable to initialize database", "err", err)
 	}
 
 	qry := db.New(sqlDB)
-	mux := server.NewMux(qry)
-	// mux := server.NewMux(sqlDB)
+
+	params := server.MuxParams{
+		DB:  sqlDB,
+		Qry: qry,
+		Env: env,
+	}
+
+	mux := server.NewMux(params)
 	ctx := context.Background()
 	srv := server.NewServer(mux)
 
@@ -37,14 +44,19 @@ func init() {
 		slog.Error("Unable to load .env file", "err", err)
 	}
 
-	switch os.Getenv("ENVIRONMENT") {
+	env = &config.Environment{
+		EnvType:        os.Getenv("SERVER_ENV"),
+		DbFile:         os.Getenv("DATABASE_FILE_PATH"),
+		UploadRoot:     os.Getenv("BASE_UPLOAD_DIR"),
+		TempUploadRoot: os.Getenv("BASE_TEMP_DIR"),
+	}
+
+	switch env.EnvType {
 	case "dev":
 		filename = "logs/dev.log"
-		dbFile = "data/dev.db"
 		logLevel.Set(slog.LevelDebug)
 	case "prod":
 		filename = "logs/prod.log"
-		dbFile = "data/prod.db"
 		logLevel.Set(slog.LevelInfo)
 	}
 

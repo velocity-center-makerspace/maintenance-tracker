@@ -29,7 +29,7 @@ DELETE FROM asset_files
 WHERE asset_id = ? AND content_hash = ?
 `
 
-func (q *Queries) DeleteAssetFile(ctx context.Context, assetID string, contentHash string) (int64, error) {
+func (q *Queries) DeleteAssetFile(ctx context.Context, assetID uuid.UUID, contentHash string) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteAssetFile, assetID, contentHash)
 	if err != nil {
 		return 0, err

@@ -5,6 +5,6 @@ VALUES (?, ?, ?, ?, ?);
 
 -- name: CreateAssetFile :execrows
 INSERT INTO asset_files
-(content_hash, mime_type, original_filename, category, asset_id)
-VALUES (?, ?, ?, ?, ?);
+(content_hash, mime_type, original_filename, asset_id)
+VALUES (?, ?, ?, ?);
 

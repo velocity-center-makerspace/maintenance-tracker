@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,20 +11,6 @@ import (
 	"syscall"
 	"time"
 )
-
-type Mux struct {
-	*http.ServeMux
-	db *sql.DB
-}
-
-func NewMux(db *sql.DB) *Mux {
-	mux := &Mux{
-		ServeMux: http.NewServeMux(),
-		db:       db,
-	}
-
-	return mux
-}
 
 func NewServer(handler http.Handler) *http.Server {
 	server := &http.Server{

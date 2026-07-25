@@ -39,7 +39,7 @@ func (q *Queries) ListAllAssetIDs(ctx context.Context) ([]uuid.UUID, error) {
 }
 
 const listAllAssets = `-- name: ListAllAssets :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.asset_id
 FROM assets
 INNER JOIN asset_files
   ON assets.id = asset_files.asset_id
@@ -69,7 +69,6 @@ func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error
 			&i.AssetFile.ContentHash,
 			&i.AssetFile.MimeType,
 			&i.AssetFile.OriginalFilename,
-			&i.AssetFile.Category,
 			&i.AssetFile.AssetID,
 		); err != nil {
 			return nil, err
@@ -86,7 +85,7 @@ func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error
 }
 
 const listAssetsAfterCursor = `-- name: ListAssetsAfterCursor :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.asset_id
 FROM assets
 INNER JOIN asset_files
   ON assets.id = asset_files.asset_id
@@ -118,7 +117,6 @@ func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit
 			&i.AssetFile.ContentHash,
 			&i.AssetFile.MimeType,
 			&i.AssetFile.OriginalFilename,
-			&i.AssetFile.Category,
 			&i.AssetFile.AssetID,
 		); err != nil {
 			return nil, err
@@ -135,7 +133,7 @@ func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit
 }
 
 const listAssetsAfterFirst = `-- name: ListAssetsAfterFirst :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.asset_id
 FROM assets
 INNER JOIN asset_files
   ON assets.id = asset_files.asset_id
@@ -166,7 +164,6 @@ func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*Lis
 			&i.AssetFile.ContentHash,
 			&i.AssetFile.MimeType,
 			&i.AssetFile.OriginalFilename,
-			&i.AssetFile.Category,
 			&i.AssetFile.AssetID,
 		); err != nil {
 			return nil, err
@@ -183,7 +180,7 @@ func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*Lis
 }
 
 const readAsset = `-- name: ReadAsset :one
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.category, asset_files.asset_id
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.content_hash, asset_files.mime_type, asset_files.original_filename, asset_files.asset_id
 FROM assets
 INNER JOIN asset_files
   ON assets.id = asset_files.asset_id
@@ -207,7 +204,6 @@ func (q *Queries) ReadAsset(ctx context.Context, id uuid.UUID) (*ReadAssetRow, e
 		&i.AssetFile.ContentHash,
 		&i.AssetFile.MimeType,
 		&i.AssetFile.OriginalFilename,
-		&i.AssetFile.Category,
 		&i.AssetFile.AssetID,
 	)
 	return &i, err

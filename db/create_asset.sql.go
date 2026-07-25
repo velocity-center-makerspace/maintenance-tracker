@@ -42,16 +42,15 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64
 
 const createAssetFile = `-- name: CreateAssetFile :execrows
 INSERT INTO asset_files
-(content_hash, mime_type, original_filename, category, asset_id)
-VALUES (?, ?, ?, ?, ?)
+(content_hash, mime_type, original_filename, asset_id)
+VALUES (?, ?, ?, ?)
 `
 
 type CreateAssetFileParams struct {
-	ContentHash      string `json:"content_hash"`
-	MimeType         string `json:"mime_type"`
-	OriginalFilename string `json:"original_filename"`
-	Category         string `json:"category"`
-	AssetID          string `json:"asset_id"`
+	ContentHash      string    `json:"content_hash"`
+	MimeType         string    `json:"mime_type"`
+	OriginalFilename string    `json:"original_filename"`
+	AssetID          uuid.UUID `json:"asset_id"`
 }
 
 func (q *Queries) CreateAssetFile(ctx context.Context, arg CreateAssetFileParams) (int64, error) {
@@ -59,7 +58,6 @@ func (q *Queries) CreateAssetFile(ctx context.Context, arg CreateAssetFileParams
 		arg.ContentHash,
 		arg.MimeType,
 		arg.OriginalFilename,
-		arg.Category,
 		arg.AssetID,
 	)
 	if err != nil {

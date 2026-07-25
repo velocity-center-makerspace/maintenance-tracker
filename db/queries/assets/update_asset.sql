@@ -22,8 +22,7 @@ WHERE id = ?;
 UPDATE asset_files SET
   content_hash = ?,
   mime_type = ?,
-  original_filename = ?,
-  category = ?
+  original_filename = ?
 WHERE asset_id = ?;
 
 -- name: UpdateAssetByID :execrows

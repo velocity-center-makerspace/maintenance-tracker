@@ -15,7 +15,6 @@ CREATE TABLE asset_files
   content_hash TEXT PRIMARY KEY,
   mime_type TEXT NOT NULL,
   original_filename TEXT NOT NULL,
-  category TEXT NOT NULL,
   asset_id TEXT NOT NULL,
   FOREIGN KEY (asset_id) REFERENCES assets(id)
 );

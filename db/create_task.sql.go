@@ -21,7 +21,7 @@ VALUES (?, ?, ?)
 type CreateCompletionLogParams struct {
 	ID          uuid.UUID    `json:"id"`
 	CompletedAt sql.NullTime `json:"completed_at"`
-	TaskID      string       `json:"task_id"`
+	TaskID      uuid.UUID    `json:"task_id"`
 }
 
 func (q *Queries) CreateCompletionLog(ctx context.Context, arg CreateCompletionLogParams) (int64, error) {
@@ -45,7 +45,7 @@ type CreateTaskParams struct {
 	NextDate      sql.NullTime `json:"next_date"`
 	StartDate     sql.NullTime `json:"start_date"`
 	EndDate       sql.NullTime `json:"end_date"`
-	AssetID       string       `json:"asset_id"`
+	AssetID       uuid.UUID    `json:"asset_id"`
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (int64, error) {
@@ -74,7 +74,7 @@ type CreateTaskRecurrenceParams struct {
 	ID           uuid.UUID `json:"id"`
 	Amount       int64     `json:"amount"`
 	DurationType string    `json:"duration_type"`
-	TaskID       string    `json:"task_id"`
+	TaskID       uuid.UUID `json:"task_id"`
 }
 
 func (q *Queries) CreateTaskRecurrence(ctx context.Context, arg CreateTaskRecurrenceParams) (int64, error) {

@@ -32,7 +32,7 @@ SET asset_id = ?
 WHERE id = ?
 `
 
-func (q *Queries) UpdateAssetID(ctx context.Context, assetID string, iD uuid.UUID) (int64, error) {
+func (q *Queries) UpdateAssetID(ctx context.Context, assetID uuid.UUID, iD uuid.UUID) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateAssetID, assetID, iD)
 	if err != nil {
 		return 0, err
@@ -128,7 +128,7 @@ type UpdateTaskByIDParams struct {
 	NextDate      sql.NullTime `json:"next_date"`
 	StartDate     sql.NullTime `json:"start_date"`
 	EndDate       sql.NullTime `json:"end_date"`
-	AssetID       string       `json:"asset_id"`
+	AssetID       uuid.UUID    `json:"asset_id"`
 	ID            uuid.UUID    `json:"id"`
 }
 

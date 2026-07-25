@@ -19,17 +19,16 @@ type Asset struct {
 }
 
 type AssetFile struct {
-	ContentHash      string `json:"content_hash"`
-	MimeType         string `json:"mime_type"`
-	OriginalFilename string `json:"original_filename"`
-	Category         string `json:"category"`
-	AssetID          string `json:"asset_id"`
+	ContentHash      string    `json:"content_hash"`
+	MimeType         string    `json:"mime_type"`
+	OriginalFilename string    `json:"original_filename"`
+	AssetID          uuid.UUID `json:"asset_id"`
 }
 
 type CompletionLog struct {
 	ID          uuid.UUID    `json:"id"`
 	CompletedAt sql.NullTime `json:"completed_at"`
-	TaskID      string       `json:"task_id"`
+	TaskID      uuid.UUID    `json:"task_id"`
 }
 
 type Task struct {
@@ -39,12 +38,12 @@ type Task struct {
 	NextDate      sql.NullTime `json:"next_date"`
 	StartDate     sql.NullTime `json:"start_date"`
 	EndDate       sql.NullTime `json:"end_date"`
-	AssetID       string       `json:"asset_id"`
+	AssetID       uuid.UUID    `json:"asset_id"`
 }
 
 type TaskRecurrence struct {
 	ID           uuid.UUID `json:"id"`
 	Amount       int64     `json:"amount"`
 	DurationType string    `json:"duration_type"`
-	TaskID       string    `json:"task_id"`
+	TaskID       uuid.UUID `json:"task_id"`
 }
