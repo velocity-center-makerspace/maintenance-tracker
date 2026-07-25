@@ -58,34 +58,6 @@ func (q *Queries) UpdateAssetEOLByID(ctx context.Context, endOfLife sql.NullTime
 	return result.RowsAffected()
 }
 
-const updateAssetFileByID = `-- name: UpdateAssetFileByID :execrows
-UPDATE asset_files SET
-  content_hash = ?,
-  mime_type = ?,
-  original_filename = ?
-WHERE asset_id = ?
-`
-
-type UpdateAssetFileByIDParams struct {
-	ContentHash      string    `json:"content_hash"`
-	MimeType         string    `json:"mime_type"`
-	OriginalFilename string    `json:"original_filename"`
-	AssetID          uuid.UUID `json:"asset_id"`
-}
-
-func (q *Queries) UpdateAssetFileByID(ctx context.Context, arg UpdateAssetFileByIDParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateAssetFileByID,
-		arg.ContentHash,
-		arg.MimeType,
-		arg.OriginalFilename,
-		arg.AssetID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const updateAssetNameByID = `-- name: UpdateAssetNameByID :execrows
 UPDATE assets
 SET name = ?

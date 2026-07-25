@@ -36,3 +36,16 @@ func (q *Queries) DeleteAssetFile(ctx context.Context, assetID uuid.UUID, conten
 	}
 	return result.RowsAffected()
 }
+
+const deleteFile = `-- name: DeleteFile :execrows
+DELETE FROM files
+WHERE content_hash = ?
+`
+
+func (q *Queries) DeleteFile(ctx context.Context, contentHash string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteFile, contentHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

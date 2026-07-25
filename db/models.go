@@ -19,16 +19,21 @@ type Asset struct {
 }
 
 type AssetFile struct {
-	ContentHash      string    `json:"content_hash"`
-	MimeType         string    `json:"mime_type"`
-	OriginalFilename string    `json:"original_filename"`
 	AssetID          uuid.UUID `json:"asset_id"`
+	ContentHash      string    `json:"content_hash"`
+	OriginalFilename string    `json:"original_filename"`
 }
 
 type CompletionLog struct {
 	ID          uuid.UUID    `json:"id"`
 	CompletedAt sql.NullTime `json:"completed_at"`
 	TaskID      uuid.UUID    `json:"task_id"`
+}
+
+type File struct {
+	ContentHash string `json:"content_hash"`
+	MimeType    string `json:"mime_type"`
+	Path        string `json:"path"`
 }
 
 type Task struct {

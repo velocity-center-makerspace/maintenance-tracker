@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/velocity-center-makerspace/maintenance-tracker/db"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/config"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/pages/assets"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/server"
 )
 
@@ -28,6 +29,9 @@ func main() {
 	}
 
 	mux := server.NewMux(params)
+
+	assets.AddAssetHandlers(mux)
+
 	ctx := context.Background()
 	srv := server.NewServer(mux)
 

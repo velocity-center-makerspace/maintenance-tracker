@@ -42,24 +42,38 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64
 
 const createAssetFile = `-- name: CreateAssetFile :execrows
 INSERT INTO asset_files
-(content_hash, mime_type, original_filename, asset_id)
-VALUES (?, ?, ?, ?)
+(content_hash, asset_id, original_filename)
+VALUES (?, ?, ?)
 `
 
 type CreateAssetFileParams struct {
 	ContentHash      string    `json:"content_hash"`
-	MimeType         string    `json:"mime_type"`
-	OriginalFilename string    `json:"original_filename"`
 	AssetID          uuid.UUID `json:"asset_id"`
+	OriginalFilename string    `json:"original_filename"`
 }
 
 func (q *Queries) CreateAssetFile(ctx context.Context, arg CreateAssetFileParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, createAssetFile,
-		arg.ContentHash,
-		arg.MimeType,
-		arg.OriginalFilename,
-		arg.AssetID,
-	)
+	result, err := q.db.ExecContext(ctx, createAssetFile, arg.ContentHash, arg.AssetID, arg.OriginalFilename)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const createFile = `-- name: CreateFile :execrows
+INSERT INTO files
+(content_hash, mime_type, path)
+VALUES (?, ?, ?)
+`
+
+type CreateFileParams struct {
+	ContentHash string `json:"content_hash"`
+	MimeType    string `json:"mime_type"`
+	Path        string `json:"path"`
+}
+
+func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, createFile, arg.ContentHash, arg.MimeType, arg.Path)
 	if err != nil {
 		return 0, err
 	}

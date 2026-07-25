@@ -18,13 +18,6 @@ UPDATE assets
 SET end_of_life = ?
 WHERE id = ?;
 
--- name: UpdateAssetFileByID :execrows
-UPDATE asset_files SET
-  content_hash = ?,
-  mime_type = ?,
-  original_filename = ?
-WHERE asset_id = ?;
-
 -- name: UpdateAssetByID :execrows
 UPDATE assets
 SET

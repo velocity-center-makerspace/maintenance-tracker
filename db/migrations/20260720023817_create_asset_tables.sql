@@ -12,11 +12,18 @@ CREATE TABLE assets
 
 CREATE TABLE asset_files
 (
+  asset_id TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  FOREIGN KEY (content_hash) REFERENCES files(content_hash),
+  FOREIGN KEY (asset_id) REFERENCES assets(id)
+);
+
+CREATE TABLE files
+(
   content_hash TEXT PRIMARY KEY,
   mime_type TEXT NOT NULL,
-  original_filename TEXT NOT NULL,
-  asset_id TEXT NOT NULL,
-  FOREIGN KEY (asset_id) REFERENCES assets(id)
+  path TEXT NOT NULL
 );
 
 
