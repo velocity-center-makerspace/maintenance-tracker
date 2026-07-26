@@ -8,7 +8,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/velocity-center-makerspace/maintenance-tracker/db"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/config"
-	"github.com/velocity-center-makerspace/maintenance-tracker/internal/pages/assets"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/pages"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/server"
 )
 
@@ -22,18 +23,20 @@ func main() {
 
 	qry := db.New(sqlDB)
 
-	params := server.MuxParams{
+	deps := router.Dependencies{
 		DB:  sqlDB,
 		Qry: qry,
 		Env: env,
 	}
 
-	mux := server.NewMux(params)
+	rt := router.New(deps)
+	reg := pages.NewRegistrar()
 
-	assets.AddAssetHandlers(mux)
+	reg.RegisterRoutes(rt)
+	rt.AddHandlers()
 
 	ctx := context.Background()
-	srv := server.NewServer(mux)
+	srv := server.NewServer(rt)
 
 	if err := server.StartServer(ctx, srv); err != nil {
 		slog.Error("Unable to start server", "err", err)

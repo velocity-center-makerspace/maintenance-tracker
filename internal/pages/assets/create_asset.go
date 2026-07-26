@@ -1,7 +1,9 @@
 package assets
 
 import (
+	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -9,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"mime"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,8 +23,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/velocity-center-makerspace/maintenance-tracker/db"
-	"github.com/velocity-center-makerspace/maintenance-tracker/internal/server"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 )
+
+var ErrUnsupportedContentType = errors.New("unsupported content type")
 
 type upload struct {
 	tmpPath  string
@@ -38,13 +43,11 @@ type fileMetaData struct {
 	path        string
 }
 
-func AddAssetHandlers(mux *server.Mux) {
-	mux.HandleFunc("POST /assets", func(w http.ResponseWriter, r *http.Request) {
-		createAssetWithFileUpload(mux, w, r)
-	})
+func RegisterCreateAsset(r router.Router) {
+	r.AddRoute("POST /assets", CreateAsset)
 }
 
-func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.Request) {
+func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Request) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
@@ -57,10 +60,9 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var asset db.CreateAssetParams
-	var uploads []upload
+	asset := db.CreateAssetParams{}
 
-	dstRoot := mux.Env.UploadRoot
+	dstRoot := deps.Env.UploadRoot
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -69,74 +71,22 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	for {
-		part, err := reader.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-			slog.Error("Unable to read next form part", "error", err)
+	params := parsePartsParams{
+		asset:   &asset,
+		reader:  reader,
+		dstRoot: dstRoot,
+	}
+
+	uploads, err := parseParts(params)
+	if err != nil {
+		if errors.Is(err, ErrUnsupportedContentType) {
+			http.Error(w, "Incompatible file type submitted", http.StatusBadRequest)
+			slog.Warn("Client submitted incompatible file type", "error", err)
 			return
 		}
-
-		mimeType := part.Header.Get("Content-Type")
-
-		switch mimeType {
-		case "application/json":
-			if err := json.NewDecoder(part).Decode(&asset); err != nil {
-				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-				slog.Error("Unable to decode JSON", "error", err)
-				return
-			}
-			asset.ID, err = uuid.NewV7()
-			if err != nil || asset.ID == uuid.Nil {
-				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-				slog.Error("Unable to set Asset ID", "error", err, "asset_id", asset.ID)
-				return
-			}
-		case "application/pdf":
-			fallthrough
-		case "application/msword":
-			fallthrough
-		case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-			if part.FileName() == "" {
-				http.Error(w, "No file name found", http.StatusBadRequest)
-				return
-			}
-
-			tmp, err := os.CreateTemp(dstRoot, "upload-*.tmp")
-			if err != nil {
-				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-				slog.Error("Unable to create temporary file for part", "error", err)
-				return
-			}
-
-			h := sha256.New()
-			tee := io.TeeReader(part, h)
-
-			if _, err := io.Copy(tmp, tee); err != nil {
-				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-				slog.Error("Unable to copy part into temporary file", "error", err)
-				return
-			}
-
-			if err := tmp.Close(); err != nil {
-				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
-				slog.Error("Unable to close temporary file", "error", err)
-				return
-			}
-
-			uploads = append(uploads,
-				upload{
-					tmpPath:  tmp.Name(),
-					checksum: hex.EncodeToString(h.Sum(nil)),
-					mimeType: mimeType,
-					filename: part.FileName(),
-					ext:      filepath.Ext(part.FileName()),
-				},
-			)
-		}
+		http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+		slog.Error("Unable to parse multipart reader parts", "error", err)
+		return
 	}
 
 	errChan := make(chan error, len(uploads))
@@ -144,8 +94,8 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 	wg := sync.WaitGroup{}
 	wg.Add(len(uploads))
 
-	metaDatas := []fileMetaData{}
-	metaDataMut := sync.Mutex{}
+	metadatas := []fileMetaData{}
+	metadataMut := sync.Mutex{}
 
 	for _, u := range uploads {
 		go func(u upload) {
@@ -160,9 +110,9 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 			meta := processFile(params)
 
 			if meta != nil {
-				metaDataMut.Lock()
-				metaDatas = append(metaDatas, *meta)
-				metaDataMut.Unlock()
+				metadataMut.Lock()
+				metadatas = append(metadatas, *meta)
+				metadataMut.Unlock()
 			}
 		}(u)
 	}
@@ -185,86 +135,99 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	tx, err := mux.DB.BeginTx(r.Context(), nil)
+	txParams := assetTxParams{
+		db:        deps.DB,
+		ctx:       r.Context(),
+		metadatas: metadatas,
+	}
+
+	err = assetTx(txParams)
 	if err != nil {
 		http.Error(
 			w,
-			"File upload failed",
+			"Unable to save asset. Please try again later.",
 			http.StatusInternalServerError,
 		)
-		slog.Error("Failed to initiate transaction", "error", err)
-		return
-	}
-	defer func() {
-		if err := tx.Rollback(); err != nil {
-			slog.Error("Failed to rollback", "error", err)
-		}
-	}()
-
-	qtx := mux.Qry.WithTx(tx)
-
-	rows, err := qtx.CreateAsset(r.Context(), asset)
-	if err != nil {
-		http.Error(
-			w,
-			"File upload failed",
-			http.StatusInternalServerError,
-		)
-		slog.Error("Database insert failed for asset", "error", err, "rows-affected", rows)
-		return
-	}
-
-	for _, m := range metaDatas {
-		fileParams := db.CreateFileParams{
-			ContentHash: m.contentHash,
-			MimeType:    m.mimeType,
-			Path:        m.path,
-		}
-
-		assetFileParams := db.CreateAssetFileParams{
-			ContentHash:      m.contentHash,
-			AssetID:          asset.ID,
-			OriginalFilename: m.filename,
-		}
-
-		rows, err := qtx.CreateFile(r.Context(), fileParams)
-		if err != nil || rows < 1 {
-			if isDuplicateKeyErr(err) {
-				continue
-			}
-			http.Error(
-				w,
-				"File upload failed",
-				http.StatusInternalServerError,
-			)
-			slog.Error("Database insert failed for file", "error", err, "rows-affected", rows)
-			return
-		}
-
-		rows, err = qtx.CreateAssetFile(r.Context(), assetFileParams)
-
-		if err != nil || rows < 1 {
-			if isDuplicateKeyErr(err) {
-				continue
-			}
-
-			http.Error(
-				w,
-				"File upload failed",
-				http.StatusInternalServerError,
-			)
-			slog.Error("Database insert failed for asset file", "error", err, "rows-affected", rows)
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		http.Error(w, "Unable to create asset", http.StatusInternalServerError)
-		slog.Error("Transaction commit failed", "error", err)
+		slog.Error("Database transaction failed", "error", err)
 		return
 	}
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+type parsePartsParams struct {
+	reader  *multipart.Reader
+	asset   *db.CreateAssetParams
+	dstRoot string
+}
+
+func parseParts(p parsePartsParams) ([]upload, error) {
+	var uploads []upload
+	for {
+		part, err := p.reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		mimeType := part.Header.Get("Content-Type")
+
+		switch mimeType {
+		default:
+			return nil, fmt.Errorf(
+				"%w: %q for part %s",
+				ErrUnsupportedContentType,
+				mimeType,
+				part.FormName(),
+			)
+		case "application/json":
+			if err := json.NewDecoder(part).Decode(p.asset); err != nil {
+				return nil, err
+			}
+			p.asset.ID, err = uuid.NewV7()
+			if err != nil || p.asset.ID == uuid.Nil {
+				return nil, fmt.Errorf("asset ID is %v and could not be set: %w", p.asset.ID, err)
+			}
+		case "application/pdf":
+			fallthrough
+		case "application/msword":
+			fallthrough
+		case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+			if part.FileName() == "" {
+				continue
+			}
+
+			tmp, err := os.CreateTemp(p.dstRoot, "upload-*.tmp")
+			if err != nil {
+				return nil, err
+			}
+
+			h := sha256.New()
+			tee := io.TeeReader(part, h)
+
+			if _, err := io.Copy(tmp, tee); err != nil {
+				return nil, err
+			}
+
+			if err := tmp.Close(); err != nil {
+				return nil, err
+			}
+
+			uploads = append(uploads,
+				upload{
+					tmpPath:  tmp.Name(),
+					checksum: hex.EncodeToString(h.Sum(nil)),
+					mimeType: mimeType,
+					filename: part.FileName(),
+					ext:      filepath.Ext(part.FileName()),
+				},
+			)
+		}
+	}
+
+	return uploads, nil
 }
 
 type processFileParams struct {
@@ -339,6 +302,96 @@ func processFile(p processFileParams) *fileMetaData {
 		mimeType:    p.upload.mimeType,
 		path:        dstPath,
 	}
+}
+
+type assetTxParams struct {
+	db        *sql.DB
+	ctx       context.Context
+	metadatas []fileMetaData
+	qry       *db.Queries
+	asset     db.CreateAssetParams
+}
+
+func assetTx(a assetTxParams) error {
+	tx, err := a.db.BeginTx(a.ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		for attempts := range 3 {
+			if err := tx.Rollback(); err != nil {
+				if errors.Is(err, sql.ErrTxDone) {
+					return
+				}
+
+				// incrementally longer retrys
+				time.Sleep(10 * (1 << attempts) * time.Millisecond)
+			}
+			slog.Error("Failed to rollback", "error", err)
+		}
+	}()
+
+	qtx := a.qry.WithTx(tx)
+
+	rows, err := qtx.CreateAsset(a.ctx, a.asset)
+	if err != nil {
+		return fmt.Errorf(
+			"database transaction failed with %d rows affected: %w",
+			rows,
+			err,
+		)
+	}
+
+	for _, m := range a.metadatas {
+		fileParams := db.CreateFileParams{
+			ContentHash: m.contentHash,
+			MimeType:    m.mimeType,
+			Path:        m.path,
+		}
+
+		assetFileParams := db.CreateAssetFileParams{
+			ContentHash:      m.contentHash,
+			AssetID:          a.asset.ID,
+			OriginalFilename: m.filename,
+		}
+
+		rows, err := qtx.CreateFile(a.ctx, fileParams)
+		if err != nil || rows < 1 {
+			if isDuplicateKeyErr(err) {
+				continue
+			}
+			return fmt.Errorf(
+				"database transaction failed with %d rows affected: %w",
+				rows,
+				err,
+			)
+		}
+
+		rows, err = qtx.CreateAssetFile(a.ctx, assetFileParams)
+
+		if err != nil || rows < 1 {
+			if isDuplicateKeyErr(err) {
+				continue
+			}
+
+			return fmt.Errorf(
+				"database transaction failed with %d rows affected: %w",
+				rows,
+				err,
+			)
+		}
+	}
+
+	for attempts := range 3 {
+		err := tx.Commit()
+		if err == nil {
+			return nil
+		}
+
+		// incrementally longer retrys
+		time.Sleep(10 * (1 << attempts) * time.Millisecond)
+	}
+	return fmt.Errorf("failed to commit transaction: %w", err)
 }
 
 func isDuplicateKeyErr(err error) bool {
