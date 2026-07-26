@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash"
 	"io"
 	"log/slog"
 	"mime"
@@ -25,8 +24,8 @@ import (
 )
 
 type upload struct {
-	tee      io.Reader // created from io.TeeReader(r, upload.hash)
-	hash     hash.Hash
+	tmpPath  string
+	checksum string
 	ext      string
 	filename string
 	mimeType string
@@ -60,6 +59,8 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 
 	var asset db.CreateAssetParams
 	var uploads []upload
+
+	dstRoot := mux.Env.UploadRoot
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -103,14 +104,33 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 				http.Error(w, "No file name found", http.StatusBadRequest)
 				return
 			}
-			// TODO: fix tee overwrite bug
-			hash := sha256.New()
-			tee := io.TeeReader(part, hash)
+
+			tmp, err := os.CreateTemp(dstRoot, "upload-*.tmp")
+			if err != nil {
+				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+				slog.Error("Unable to create temporary file for part", "error", err)
+				return
+			}
+
+			h := sha256.New()
+			tee := io.TeeReader(part, h)
+
+			if _, err := io.Copy(tmp, tee); err != nil {
+				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+				slog.Error("Unable to copy part into temporary file", "error", err)
+				return
+			}
+
+			if err := tmp.Close(); err != nil {
+				http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+				slog.Error("Unable to close temporary file", "error", err)
+				return
+			}
 
 			uploads = append(uploads,
 				upload{
-					tee:      tee,
-					hash:     hash,
+					tmpPath:  tmp.Name(),
+					checksum: hex.EncodeToString(h.Sum(nil)),
 					mimeType: mimeType,
 					filename: part.FileName(),
 					ext:      filepath.Ext(part.FileName()),
@@ -123,8 +143,6 @@ func createAssetWithFileUpload(mux *server.Mux, w http.ResponseWriter, r *http.R
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(uploads))
-
-	dstRoot := mux.Env.UploadRoot
 
 	metaDatas := []fileMetaData{}
 	metaDataMut := sync.Mutex{}
@@ -256,7 +274,7 @@ type processFileParams struct {
 }
 
 func processFile(p processFileParams) *fileMetaData {
-	tmp, err := os.CreateTemp(p.dstRoot, "upload-*.tmp")
+	tmp, err := os.Open(p.upload.tmpPath)
 	if err != nil {
 		p.errChan <- err
 		return nil
@@ -264,7 +282,7 @@ func processFile(p processFileParams) *fileMetaData {
 
 	defer func() {
 		for attempts := range 3 {
-			err := os.Remove(tmp.Name())
+			err := os.Remove(p.upload.tmpPath)
 			if err == nil || errors.Is(err, os.ErrNotExist) {
 				return
 			}
@@ -275,41 +293,29 @@ func processFile(p processFileParams) *fileMetaData {
 		p.errChan <- fmt.Errorf("failed to remove after 3 attempts: %w", err)
 	}()
 
-	defer func() { _ = tmp.Close() }() // not handling err b/c will be removed regardless
+	defer func() { _ = tmp.Close() }()
 
-	if _, err = io.Copy(tmp, p.upload.tee); err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	checksum := hex.EncodeToString(p.upload.hash.Sum(nil))
 	dstPath := filepath.Join(
 		p.dstRoot,
-		checksum[:2],
-		checksum[2:4],
-		checksum+p.upload.ext,
+		p.upload.checksum[:2],
+		p.upload.checksum[2:4],
+		p.upload.checksum+p.upload.ext,
 	)
 
-	if _, err = os.Stat(dstPath); err == nil {
+	if _, err := os.Stat(dstPath); err == nil {
 		return &fileMetaData{
-			contentHash: checksum,
+			contentHash: p.upload.checksum,
 			filename:    p.upload.filename,
 			mimeType:    p.upload.mimeType,
 			path:        dstPath,
 		}
 	}
 
-	if err = os.MkdirAll(filepath.Dir(dstPath), 0744); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0744); err != nil {
 		p.errChan <- err
 		return nil
 	}
 
-	// create dst & copy temp into it
 	dst, err := os.Create(dstPath)
 	if err != nil {
 		p.errChan <- err
@@ -328,7 +334,7 @@ func processFile(p processFileParams) *fileMetaData {
 	}
 
 	return &fileMetaData{
-		contentHash: checksum,
+		contentHash: p.upload.checksum,
 		filename:    p.upload.filename,
 		mimeType:    p.upload.mimeType,
 		path:        dstPath,
