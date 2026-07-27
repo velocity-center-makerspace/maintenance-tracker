@@ -11,15 +11,15 @@ type Registrar interface {
 	RegisterRoutes(r router.Router)
 }
 
-type registrar struct {
+type registry struct {
 	pages []Registrar
 }
 
 func NewRegistrar() Registrar {
-	return &registrar{}
+	return &registry{}
 }
 
-func (reg *registrar) RegisterRoutes(r router.Router) {
+func (reg *registry) RegisterRoutes(r router.Router) {
 	reg.pages = append(
 		reg.pages,
 		assets.AssetsPage{},

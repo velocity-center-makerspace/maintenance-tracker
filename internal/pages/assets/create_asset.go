@@ -26,6 +26,8 @@ import (
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 )
 
+// TODO: create ErrorResponse in JSON and update that in
+
 var ErrUnsupportedContentType = errors.New("unsupported content type")
 
 type upload struct {
@@ -36,7 +38,7 @@ type upload struct {
 	mimeType string
 }
 
-type fileMetaData struct {
+type fileMetadata struct {
 	contentHash string
 	mimeType    string
 	filename    string
@@ -94,7 +96,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	wg := sync.WaitGroup{}
 	wg.Add(len(uploads))
 
-	metadatas := []fileMetaData{}
+	metadatas := []fileMetadata{}
 	metadataMut := sync.Mutex{}
 
 	for _, u := range uploads {
@@ -152,7 +154,13 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	response := db.Asset{
+		ID: asset.ID,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(http.StatusCreated)
 }
 
 type parsePartsParams struct {
@@ -236,7 +244,7 @@ type processFileParams struct {
 	errChan chan<- error
 }
 
-func processFile(p processFileParams) *fileMetaData {
+func processFile(p processFileParams) *fileMetadata {
 	tmp, err := os.Open(p.upload.tmpPath)
 	if err != nil {
 		p.errChan <- err
@@ -266,7 +274,7 @@ func processFile(p processFileParams) *fileMetaData {
 	)
 
 	if _, err := os.Stat(dstPath); err == nil {
-		return &fileMetaData{
+		return &fileMetadata{
 			contentHash: p.upload.checksum,
 			filename:    p.upload.filename,
 			mimeType:    p.upload.mimeType,
@@ -296,7 +304,7 @@ func processFile(p processFileParams) *fileMetaData {
 		return nil
 	}
 
-	return &fileMetaData{
+	return &fileMetadata{
 		contentHash: p.upload.checksum,
 		filename:    p.upload.filename,
 		mimeType:    p.upload.mimeType,
@@ -307,7 +315,7 @@ func processFile(p processFileParams) *fileMetaData {
 type assetTxParams struct {
 	db        *sql.DB
 	ctx       context.Context
-	metadatas []fileMetaData
+	metadatas []fileMetadata
 	qry       *db.Queries
 	asset     db.CreateAssetParams
 }

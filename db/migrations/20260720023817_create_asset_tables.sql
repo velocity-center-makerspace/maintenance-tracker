@@ -32,3 +32,5 @@ DROP TABLE assets;
 
 DROP TABLE asset_files;
 
+DROP TABLE files;
+

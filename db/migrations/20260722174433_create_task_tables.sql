@@ -35,3 +35,5 @@ DROP TABLE tasks;
 
 DROP TABLE task_recurrences;
 
+DROP TABLE completion_logs;
+
