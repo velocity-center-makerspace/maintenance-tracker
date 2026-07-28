@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/velocity-center-makerspace/maintenance-tracker/db"
+	"github.com/velocity-center-makerspace/maintenance-tracker/internal/response"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 )
 
@@ -52,13 +53,16 @@ func RegisterCreateAsset(r router.Router) {
 func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Request) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
-		http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+		resp := response.New("Unable to retrieve form data", "")
+		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to parse mime type", "error", err)
 		return
 	}
 
 	if !(strings.HasPrefix(mediaType, "multipart/")) && r.Method != "POST" {
-		http.Error(w, "Incorrect mime type or request method", http.StatusBadRequest)
+		resp := response.New("Incorrect mime type or request method", "")
+		resp.Write(w, http.StatusBadRequest)
+		slog.Warn("Client sent a bad request", "mediaType", mediaType)
 		return
 	}
 
@@ -68,7 +72,8 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+		resp := response.New("Unable to retrieve form data", "")
+		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to read request", "error", err)
 		return
 	}
@@ -82,11 +87,13 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	uploads, err := parseParts(params)
 	if err != nil {
 		if errors.Is(err, ErrUnsupportedContentType) {
-			http.Error(w, "Incompatible file type submitted", http.StatusBadRequest)
+			resp := response.New("Incompatible file type submitted", "")
+			resp.Write(w, http.StatusBadRequest)
 			slog.Warn("Client submitted incompatible file type", "error", err)
 			return
 		}
-		http.Error(w, "Unable to retrieve form data", http.StatusInternalServerError)
+		resp := response.New("Unable to retrieve form data", "")
+		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to parse multipart reader parts", "error", err)
 		return
 	}
@@ -133,7 +140,8 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	}
 
 	if firstErr != nil {
-		http.Error(w, "File upload failed", http.StatusInternalServerError)
+		resp := response.New("File upload failed", "")
+		resp.Write(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -145,21 +153,15 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 	err = assetTx(txParams)
 	if err != nil {
-		http.Error(
-			w,
-			"Unable to save asset. Please try again later.",
-			http.StatusInternalServerError,
-		)
+		resp := response.New("Unable to save asset. Please try again later.", "")
+		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Database transaction failed", "error", err)
 		return
 	}
 
-	response := db.Asset{
-		ID: asset.ID,
-	}
-
+	resp := response.New("Asset created successfully", asset.ID.String())
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(resp)
 	w.WriteHeader(http.StatusCreated)
 }
 
