@@ -158,7 +158,6 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	}
 
 	resp := response.New("Asset created successfully")
-	resp.ID = asset.ID.String()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 	w.WriteHeader(http.StatusCreated)
