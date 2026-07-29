@@ -14,16 +14,17 @@ import (
 
 const createAsset = `-- name: CreateAsset :execrows
 INSERT INTO assets
-(id, name, warranty_expiry, status, end_of_life)
-VALUES (?, ?, ?, ?, ?)
+(id, name, warranty_expiry, availability, attention_needed, end_of_life)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateAssetParams struct {
-	ID             uuid.UUID    `json:"id"`
-	Name           string       `json:"name"`
-	WarrantyExpiry sql.NullTime `json:"warranty_expiry"`
-	Status         string       `json:"status"`
-	EndOfLife      sql.NullTime `json:"end_of_life"`
+	ID              uuid.UUID    `json:"id"`
+	Name            string       `json:"name"`
+	WarrantyExpiry  sql.NullTime `json:"warranty_expiry"`
+	Availability    string       `json:"availability"`
+	AttentionNeeded string       `json:"attention_needed"`
+	EndOfLife       sql.NullTime `json:"end_of_life"`
 }
 
 func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64, error) {
@@ -31,7 +32,8 @@ func (q *Queries) CreateAsset(ctx context.Context, arg CreateAssetParams) (int64
 		arg.ID,
 		arg.Name,
 		arg.WarrantyExpiry,
-		arg.Status,
+		arg.Availability,
+		arg.AttentionNeeded,
 		arg.EndOfLife,
 	)
 	if err != nil {

@@ -6,7 +6,8 @@ CREATE TABLE assets
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   warranty_expiry TEXT,
-  status TEXT NOT NULL,
+  availability TEXT NOT NULL,
+  attention_needed TEXT NOT NULL,
   end_of_life TEXT
 );
 

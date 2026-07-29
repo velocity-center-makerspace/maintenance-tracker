@@ -157,7 +157,7 @@ func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*Lis
 }
 
 const readAsset = `-- name: ReadAsset :one
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.asset_id, asset_files.content_hash, asset_files.original_filename
+SELECT assets.id, assets.name, assets.warranty_expiry, assets.availability, assets.attention_needed, assets.end_of_life, asset_files.asset_id, asset_files.content_hash, asset_files.original_filename
 FROM assets
 INNER JOIN asset_files
   ON assets.id = asset_files.asset_id
@@ -176,7 +176,8 @@ func (q *Queries) ReadAsset(ctx context.Context, id uuid.UUID) (*ReadAssetRow, e
 		&i.Asset.ID,
 		&i.Asset.Name,
 		&i.Asset.WarrantyExpiry,
-		&i.Asset.Status,
+		&i.Asset.Availability,
+		&i.Asset.AttentionNeeded,
 		&i.Asset.EndOfLife,
 		&i.AssetFile.AssetID,
 		&i.AssetFile.ContentHash,

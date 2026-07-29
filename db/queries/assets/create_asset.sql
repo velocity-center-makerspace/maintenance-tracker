@@ -1,7 +1,7 @@
 -- name: CreateAsset :execrows
 INSERT INTO assets
-(id, name, warranty_expiry, status, end_of_life)
-VALUES (?, ?, ?, ?, ?);
+(id, name, warranty_expiry, availability, attention_needed, end_of_life)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: CreateAssetFile :execrows
 INSERT INTO asset_files

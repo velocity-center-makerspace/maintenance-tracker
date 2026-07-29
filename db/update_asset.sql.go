@@ -12,29 +12,46 @@ import (
 	"github.com/google/uuid"
 )
 
+const updateAssetAvailabilityByID = `-- name: UpdateAssetAvailabilityByID :execrows
+UPDATE assets
+SET availability = ?
+WHERE id = ?
+`
+
+func (q *Queries) UpdateAssetAvailabilityByID(ctx context.Context, availability string, iD uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateAssetAvailabilityByID, availability, iD)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateAssetByID = `-- name: UpdateAssetByID :execrows
 UPDATE assets
 SET
   name = ?,
   warranty_expiry = ?,
-  status = ?,
+  availability = ?,
+  attention_needed = ?,
   end_of_life = ?
 WHERE id = ?
 `
 
 type UpdateAssetByIDParams struct {
-	Name           string       `json:"name"`
-	WarrantyExpiry sql.NullTime `json:"warranty_expiry"`
-	Status         string       `json:"status"`
-	EndOfLife      sql.NullTime `json:"end_of_life"`
-	ID             uuid.UUID    `json:"id"`
+	Name            string       `json:"name"`
+	WarrantyExpiry  sql.NullTime `json:"warranty_expiry"`
+	Availability    string       `json:"availability"`
+	AttentionNeeded string       `json:"attention_needed"`
+	EndOfLife       sql.NullTime `json:"end_of_life"`
+	ID              uuid.UUID    `json:"id"`
 }
 
 func (q *Queries) UpdateAssetByID(ctx context.Context, arg UpdateAssetByIDParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateAssetByID,
 		arg.Name,
 		arg.WarrantyExpiry,
-		arg.Status,
+		arg.Availability,
+		arg.AttentionNeeded,
 		arg.EndOfLife,
 		arg.ID,
 	)
@@ -72,14 +89,14 @@ func (q *Queries) UpdateAssetNameByID(ctx context.Context, name string, iD uuid.
 	return result.RowsAffected()
 }
 
-const updateAssetStatusByID = `-- name: UpdateAssetStatusByID :execrows
+const updateAssetNeedsAttentionByID = `-- name: UpdateAssetNeedsAttentionByID :execrows
 UPDATE assets
-SET status = ?
+SET attention_needed = ?
 WHERE id = ?
 `
 
-func (q *Queries) UpdateAssetStatusByID(ctx context.Context, status string, iD uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateAssetStatusByID, status, iD)
+func (q *Queries) UpdateAssetNeedsAttentionByID(ctx context.Context, attentionNeeded string, iD uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateAssetNeedsAttentionByID, attentionNeeded, iD)
 	if err != nil {
 		return 0, err
 	}

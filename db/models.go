@@ -11,11 +11,12 @@ import (
 )
 
 type Asset struct {
-	ID             uuid.UUID    `json:"id"`
-	Name           string       `json:"name"`
-	WarrantyExpiry sql.NullTime `json:"warranty_expiry"`
-	Status         string       `json:"status"`
-	EndOfLife      sql.NullTime `json:"end_of_life"`
+	ID              uuid.UUID    `json:"id"`
+	Name            string       `json:"name"`
+	WarrantyExpiry  sql.NullTime `json:"warranty_expiry"`
+	Availability    string       `json:"availability"`
+	AttentionNeeded string       `json:"attention_needed"`
+	EndOfLife       sql.NullTime `json:"end_of_life"`
 }
 
 type AssetFile struct {
