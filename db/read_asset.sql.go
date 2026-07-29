@@ -11,6 +11,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const countAssetFileReferences = `-- name: CountAssetFileReferences :one
+SELECT COUNT(*)
+FROM asset_files
+WHERE content_hash = ?
+`
+
+func (q *Queries) CountAssetFileReferences(ctx context.Context, contentHash string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAssetFileReferences, contentHash)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const listAllAssetIDs = `-- name: ListAllAssetIDs :many
 SELECT id FROM assets
 `
@@ -199,4 +212,17 @@ func (q *Queries) ReadContentHashByAssetID(ctx context.Context, assetID uuid.UUI
 		return nil, err
 	}
 	return items, nil
+}
+
+const readPathFromContentHash = `-- name: ReadPathFromContentHash :one
+SELECT path
+FROM files
+WHERE content_hash = ?
+`
+
+func (q *Queries) ReadPathFromContentHash(ctx context.Context, contentHash string) (string, error) {
+	row := q.db.QueryRowContext(ctx, readPathFromContentHash, contentHash)
+	var path string
+	err := row.Scan(&path)
+	return path, err
 }

@@ -30,3 +30,13 @@ SELECT id FROM assets;
 SELECT content_hash
 FROM asset_files
 WHERE asset_id = ?;
+
+-- name: CountAssetFileReferences :one
+SELECT COUNT(*)
+FROM asset_files
+WHERE content_hash = ?;
+
+-- name: ReadPathFromContentHash :one
+SELECT path
+FROM files
+WHERE content_hash = ?;
