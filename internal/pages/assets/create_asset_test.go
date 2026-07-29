@@ -1,7 +1,7 @@
 package assets
 
 import (
-	"net/http/httptest"
+	// "net/http/httptest"
 	"testing"
 )
 
@@ -17,7 +17,7 @@ func TestCreateAsset(t *testing.T) {
 	// act: send requests to dummy server for POST /assets
 
 	// assert: handle errors
-	// assert: correct headers and response
+	// assert: ensure correct headers and response
 }
 
 func TestParseParts(t *testing.T) {
