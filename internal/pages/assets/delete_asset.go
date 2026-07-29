@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/response"
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
@@ -63,10 +65,10 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 					return
 				}
 
+				slog.Error("Failed to rollback", "error", err)
 				// incrementally longer retrys
 				time.Sleep(10 * (1 << attempts) * time.Millisecond)
 			}
-			slog.Error("Failed to rollback", "error", err)
 		}
 	}()
 
@@ -98,22 +100,6 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	for _, hash := range contentHashes {
-		rows, err := qtx.DeleteFileByContentHash(r.Context(), hash)
-		if err != nil {
-			resp := response.New("Something went wrong; asset could not be deleted")
-			resp.Write(w, http.StatusInternalServerError)
-			slog.Error(
-				"Database transaction failed; could not delete files",
-				"error",
-				err,
-				"rows-affected",
-				rows,
-			)
-			return
-		}
-	}
-
 	rows, err = qtx.DeleteAssetFileByAssetID(r.Context(), assetID)
 	if err != nil {
 		resp := response.New("Something went wrong; asset could not be deleted")
@@ -126,6 +112,49 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 			rows,
 		)
 		return
+	}
+
+	var paths []string
+
+	for _, hash := range contentHashes {
+		path, err := qtx.ReadPathFromContentHash(r.Context(), hash)
+		if err != nil {
+			resp := response.New("Something went wrong; asset could not be deleted")
+			resp.Write(w, http.StatusInternalServerError)
+			slog.Error("Database transaction failed; could not read file path", "error", err)
+			return
+		}
+
+		paths = append(paths, path)
+
+		count, err := qtx.CountAssetFileReferences(r.Context(), hash)
+		if err != nil {
+			resp := response.New("Something went wrong; asset could not be deleted")
+			resp.Write(w, http.StatusInternalServerError)
+			slog.Error(
+				"Database transaction failed; could not get file reference count",
+				"error",
+				err,
+			)
+			return
+		}
+
+		// delete file only if no other asset_files depend on it
+		if count == 0 {
+			rows, err := qtx.DeleteFileByContentHash(r.Context(), hash)
+			if err != nil {
+				resp := response.New("Something went wrong; asset could not be deleted")
+				resp.Write(w, http.StatusInternalServerError)
+				slog.Error(
+					"Database transaction failed; could not delete files",
+					"error",
+					err,
+					"rows-affected",
+					rows,
+				)
+				return
+			}
+		}
 	}
 
 	for attempts := range 3 {
@@ -149,7 +178,38 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	for _, path := range paths {
+		err := deleteFileFromDisk(path)
+		if err != nil {
+			slog.Error("Failed to delete %s from disk", path)
+		}
+	}
+
 	resp := response.New("Deleted Asset successfully")
 	resp.ID = assetID.String()
 	resp.Write(w, http.StatusNoContent)
+}
+
+func deleteFileFromDisk(path string) error {
+	var err error
+
+	if _, err = os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return err
+	}
+
+	for attempts := range 3 {
+		err = os.Remove(path)
+		if err == nil || errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		// incrementally longer retrys
+		time.Sleep(10 * (1 << attempts) * time.Millisecond)
+	}
+
+	return err
 }

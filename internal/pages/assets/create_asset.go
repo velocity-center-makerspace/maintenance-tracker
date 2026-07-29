@@ -333,10 +333,10 @@ func assetTx(a assetTxParams) error {
 					return
 				}
 
+				slog.Error("Failed to rollback", "error", err)
 				// incrementally longer retrys
 				time.Sleep(10 * (1 << attempts) * time.Millisecond)
 			}
-			slog.Error("Failed to rollback", "error", err)
 		}
 	}()
 
