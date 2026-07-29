@@ -5,9 +5,9 @@ CREATE TABLE assets
 (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  warranty_expiry NUMERIC,
+  warranty_expiry TEXT,
   status TEXT NOT NULL,
-  end_of_life NUMERIC
+  end_of_life TEXT
 );
 
 CREATE TABLE asset_files

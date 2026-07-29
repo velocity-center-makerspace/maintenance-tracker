@@ -5,10 +5,10 @@ CREATE TABLE tasks
 (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  last_completed NUMERIC,
-  next_date NUMERIC,
-  start_date NUMERIC,
-  end_date NUMERIC,
+  last_completed TEXT,
+  next_date TEXT,
+  start_date TEXT,
+  end_date TEXT,
   asset_id TEXT NOT NULL,
   FOREIGN KEY (asset_id) REFERENCES assets(id)
 );
@@ -25,7 +25,7 @@ CREATE TABLE task_recurrences
 CREATE TABLE completion_logs
 (
   id TEXT PRIMARY KEY,
-  completed_at NUMERIC NOT NULL,
+  completed_at TEXT NOT NULL,
   task_id TEXT NOT NULL,
   FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
