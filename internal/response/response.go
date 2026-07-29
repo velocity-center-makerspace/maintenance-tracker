@@ -11,9 +11,8 @@ type Response struct {
 	Msg string `json:"msg"`
 }
 
-func New(msg, id string) *Response {
+func New(msg string) *Response {
 	return &Response{
-		ID:  id,
 		Msg: msg,
 	}
 }

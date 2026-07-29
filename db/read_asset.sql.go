@@ -39,16 +39,14 @@ func (q *Queries) ListAllAssetIDs(ctx context.Context) ([]uuid.UUID, error) {
 }
 
 const listAllAssets = `-- name: ListAllAssets :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.asset_id, asset_files.content_hash, asset_files.original_filename
+SELECT id, name
 FROM assets
-INNER JOIN asset_files
-  ON assets.id = asset_files.asset_id
 ORDER BY assets.id
 `
 
 type ListAllAssetsRow struct {
-	Asset     Asset     `json:"asset"`
-	AssetFile AssetFile `json:"asset_file"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error) {
@@ -60,16 +58,7 @@ func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error
 	var items []*ListAllAssetsRow
 	for rows.Next() {
 		var i ListAllAssetsRow
-		if err := rows.Scan(
-			&i.Asset.ID,
-			&i.Asset.Name,
-			&i.Asset.WarrantyExpiry,
-			&i.Asset.Status,
-			&i.Asset.EndOfLife,
-			&i.AssetFile.AssetID,
-			&i.AssetFile.ContentHash,
-			&i.AssetFile.OriginalFilename,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
@@ -84,18 +73,16 @@ func (q *Queries) ListAllAssets(ctx context.Context) ([]*ListAllAssetsRow, error
 }
 
 const listAssetsAfterCursor = `-- name: ListAssetsAfterCursor :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.asset_id, asset_files.content_hash, asset_files.original_filename
+SELECT id, name
 FROM assets
-INNER JOIN asset_files
-  ON assets.id = asset_files.asset_id
 WHERE assets.id > ?
 ORDER BY assets.id
 LIMIT ?
 `
 
 type ListAssetsAfterCursorRow struct {
-	Asset     Asset     `json:"asset"`
-	AssetFile AssetFile `json:"asset_file"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit int64) ([]*ListAssetsAfterCursorRow, error) {
@@ -107,16 +94,7 @@ func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit
 	var items []*ListAssetsAfterCursorRow
 	for rows.Next() {
 		var i ListAssetsAfterCursorRow
-		if err := rows.Scan(
-			&i.Asset.ID,
-			&i.Asset.Name,
-			&i.Asset.WarrantyExpiry,
-			&i.Asset.Status,
-			&i.Asset.EndOfLife,
-			&i.AssetFile.AssetID,
-			&i.AssetFile.ContentHash,
-			&i.AssetFile.OriginalFilename,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
@@ -131,17 +109,15 @@ func (q *Queries) ListAssetsAfterCursor(ctx context.Context, iD uuid.UUID, limit
 }
 
 const listAssetsAfterFirst = `-- name: ListAssetsAfterFirst :many
-SELECT assets.id, assets.name, assets.warranty_expiry, assets.status, assets.end_of_life, asset_files.asset_id, asset_files.content_hash, asset_files.original_filename
+SELECT id, name
 FROM assets
-INNER JOIN asset_files
-  ON assets.id = asset_files.asset_id
 ORDER BY assets.id
 LIMIT ?
 `
 
 type ListAssetsAfterFirstRow struct {
-	Asset     Asset     `json:"asset"`
-	AssetFile AssetFile `json:"asset_file"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*ListAssetsAfterFirstRow, error) {
@@ -153,16 +129,7 @@ func (q *Queries) ListAssetsAfterFirst(ctx context.Context, limit int64) ([]*Lis
 	var items []*ListAssetsAfterFirstRow
 	for rows.Next() {
 		var i ListAssetsAfterFirstRow
-		if err := rows.Scan(
-			&i.Asset.ID,
-			&i.Asset.Name,
-			&i.Asset.WarrantyExpiry,
-			&i.Asset.Status,
-			&i.Asset.EndOfLife,
-			&i.AssetFile.AssetID,
-			&i.AssetFile.ContentHash,
-			&i.AssetFile.OriginalFilename,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
@@ -203,4 +170,33 @@ func (q *Queries) ReadAsset(ctx context.Context, id uuid.UUID) (*ReadAssetRow, e
 		&i.AssetFile.OriginalFilename,
 	)
 	return &i, err
+}
+
+const readContentHashByAssetID = `-- name: ReadContentHashByAssetID :many
+SELECT content_hash
+FROM asset_files
+WHERE asset_id = ?
+`
+
+func (q *Queries) ReadContentHashByAssetID(ctx context.Context, assetID uuid.UUID) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, readContentHashByAssetID, assetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var content_hash string
+		if err := rows.Scan(&content_hash); err != nil {
+			return nil, err
+		}
+		items = append(items, content_hash)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

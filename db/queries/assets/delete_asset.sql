@@ -1,12 +1,12 @@
--- name: DeleteAsset :execrows
+-- name: DeleteAssetByID :execrows
 DELETE FROM assets
 WHERE id = ?;
 
--- name: DeleteAssetFile :execrows
+-- name: DeleteAssetFileByAssetID :execrows
 DELETE FROM asset_files
-WHERE asset_id = ? AND content_hash = ?;
+WHERE asset_id = ?;
 
--- name: DeleteFile :execrows
+-- name: DeleteFileByContentHash :execrows
 DELETE FROM files
 WHERE content_hash = ?;
 

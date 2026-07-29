@@ -11,39 +11,39 @@ import (
 	"github.com/google/uuid"
 )
 
-const deleteAsset = `-- name: DeleteAsset :execrows
+const deleteAssetByID = `-- name: DeleteAssetByID :execrows
 DELETE FROM assets
 WHERE id = ?
 `
 
-func (q *Queries) DeleteAsset(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAsset, id)
+func (q *Queries) DeleteAssetByID(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAssetByID, id)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected()
 }
 
-const deleteAssetFile = `-- name: DeleteAssetFile :execrows
+const deleteAssetFileByAssetID = `-- name: DeleteAssetFileByAssetID :execrows
 DELETE FROM asset_files
-WHERE asset_id = ? AND content_hash = ?
+WHERE asset_id = ?
 `
 
-func (q *Queries) DeleteAssetFile(ctx context.Context, assetID uuid.UUID, contentHash string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteAssetFile, assetID, contentHash)
+func (q *Queries) DeleteAssetFileByAssetID(ctx context.Context, assetID uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAssetFileByAssetID, assetID)
 	if err != nil {
 		return 0, err
 	}
 	return result.RowsAffected()
 }
 
-const deleteFile = `-- name: DeleteFile :execrows
+const deleteFileByContentHash = `-- name: DeleteFileByContentHash :execrows
 DELETE FROM files
 WHERE content_hash = ?
 `
 
-func (q *Queries) DeleteFile(ctx context.Context, contentHash string) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deleteFile, contentHash)
+func (q *Queries) DeleteFileByContentHash(ctx context.Context, contentHash string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteFileByContentHash, contentHash)
 	if err != nil {
 		return 0, err
 	}

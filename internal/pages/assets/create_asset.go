@@ -27,8 +27,6 @@ import (
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 )
 
-// TODO: create ErrorResponse in JSON and update that in
-
 var ErrUnsupportedContentType = errors.New("unsupported content type")
 
 type upload struct {
@@ -53,14 +51,14 @@ func RegisterCreateAsset(r router.Router) {
 func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Request) {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
-		resp := response.New("Unable to retrieve form data", "")
+		resp := response.New("Unable to retrieve form data")
 		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to parse mime type", "error", err)
 		return
 	}
 
 	if !(strings.HasPrefix(mediaType, "multipart/")) && r.Method != "POST" {
-		resp := response.New("Incorrect mime type or request method", "")
+		resp := response.New("Incorrect mime type or request method")
 		resp.Write(w, http.StatusBadRequest)
 		slog.Warn("Client sent a bad request", "mediaType", mediaType)
 		return
@@ -72,7 +70,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 	reader, err := r.MultipartReader()
 	if err != nil {
-		resp := response.New("Unable to retrieve form data", "")
+		resp := response.New("Unable to retrieve form data")
 		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to read request", "error", err)
 		return
@@ -87,12 +85,12 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	uploads, err := parseParts(params)
 	if err != nil {
 		if errors.Is(err, ErrUnsupportedContentType) {
-			resp := response.New("Incompatible file type submitted", "")
+			resp := response.New("Incompatible file type submitted")
 			resp.Write(w, http.StatusBadRequest)
 			slog.Warn("Client submitted incompatible file type", "error", err)
 			return
 		}
-		resp := response.New("Unable to retrieve form data", "")
+		resp := response.New("Unable to retrieve form data")
 		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to parse multipart reader parts", "error", err)
 		return
@@ -140,7 +138,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	}
 
 	if firstErr != nil {
-		resp := response.New("File upload failed", "")
+		resp := response.New("File upload failed")
 		resp.Write(w, http.StatusInternalServerError)
 		return
 	}
@@ -153,13 +151,14 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 	err = assetTx(txParams)
 	if err != nil {
-		resp := response.New("Unable to save asset. Please try again later.", "")
+		resp := response.New("Unable to save asset. Please try again later.")
 		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Database transaction failed", "error", err)
 		return
 	}
 
-	resp := response.New("Asset created successfully", asset.ID.String())
+	resp := response.New("Asset created successfully")
+	resp.ID = asset.ID.String()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 	w.WriteHeader(http.StatusCreated)
@@ -366,7 +365,7 @@ func assetTx(a assetTxParams) error {
 		}
 
 		rows, err := qtx.CreateFile(a.ctx, fileParams)
-		if err != nil || rows < 1 {
+		if err != nil {
 			if isDuplicateKeyErr(err) {
 				continue
 			}
@@ -379,7 +378,7 @@ func assetTx(a assetTxParams) error {
 
 		rows, err = qtx.CreateAssetFile(a.ctx, assetFileParams)
 
-		if err != nil || rows < 1 {
+		if err != nil {
 			if isDuplicateKeyErr(err) {
 				continue
 			}
