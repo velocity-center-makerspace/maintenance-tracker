@@ -15,7 +15,7 @@ import (
 	"github.com/velocity-center-makerspace/maintenance-tracker/internal/router"
 )
 
-type DeleteAssetRequest struct {
+type deleteAssetRequest struct {
 	AssetID string `json:"asset_id"`
 }
 
@@ -24,7 +24,7 @@ func RegisterDeleteAsset(r router.Router) {
 }
 
 func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Request) {
-	var req DeleteAssetRequest
+	var req deleteAssetRequest
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 
@@ -181,12 +181,11 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 	for _, path := range paths {
 		err := deleteFileFromDisk(path)
 		if err != nil {
-			slog.Error("Failed to delete %s from disk", path)
+			slog.Error("Failed to delete file from disk", "path", path)
 		}
 	}
 
 	resp := response.New("Deleted Asset successfully")
-	resp.ID = assetID.String()
 	resp.Write(w, http.StatusNoContent)
 }
 

@@ -17,3 +17,12 @@ func TestDeleteAsset(t *testing.T) {
 	// assert: handle errors
 	// assert: ensure correct headers and response
 }
+
+func TestDeleteFileFromDisk(t *testing.T) {
+	// assign: create temp files
+	// assign: create some non-existent file paths
+
+	// act: call deleteFileFromDisk & capture err for each file
+
+	// assert: err response is as expected
+}
