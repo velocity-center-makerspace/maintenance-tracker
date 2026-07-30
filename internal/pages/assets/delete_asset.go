@@ -127,7 +127,7 @@ func DeleteAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 		paths = append(paths, path)
 
-		count, err := qtx.CountAssetFileReferences(r.Context(), hash)
+		count, err := qtx.CountAssetFileRefsByID(r.Context(), hash)
 		if err != nil {
 			resp := response.New("Something went wrong; asset could not be deleted")
 			resp.Write(w, http.StatusInternalServerError)

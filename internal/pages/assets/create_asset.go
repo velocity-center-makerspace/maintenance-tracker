@@ -96,6 +96,34 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	err = checkAvailability(asset.Availability)
+	if err != nil {
+		resp := response.New("Invalid availability string in request")
+		resp.Write(w, http.StatusBadRequest)
+		slog.Error("Client sent invalid availability string", "error", err)
+		return
+	}
+
+	err = checkAttentionNeeded(asset.AttentionNeeded)
+	if err != nil {
+		resp := response.New("Invalid attention_needed in request")
+		resp.Write(w, http.StatusBadRequest)
+		slog.Error("Client sent invalid attention_needed string", "error", err)
+		return
+	}
+
+	err = validateAssetStatus(asset.Availability, asset.AttentionNeeded)
+	if err != nil {
+		resp := response.New("Invalid availability and attention_needed status combination")
+		resp.Write(w, http.StatusBadRequest)
+		slog.Error(
+			"Client sent invalid availability and attention_needed combination",
+			"error",
+			err,
+		)
+		return
+	}
+
 	errChan := make(chan error, len(uploads))
 
 	wg := sync.WaitGroup{}
@@ -180,7 +208,10 @@ func parseParts(p parsePartsParams) ([]upload, error) {
 			return nil, err
 		}
 
-		mimeType := part.Header.Get("Content-Type")
+		mimeType, _, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, err
+		}
 
 		switch mimeType {
 		default:
