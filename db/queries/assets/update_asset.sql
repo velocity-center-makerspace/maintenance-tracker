@@ -8,14 +8,10 @@ UPDATE assets
 SET warranty_expiry = ?
 WHERE id = ?;
 
--- name: UpdateAssetAvailabilityByID :execrows
+-- name: UpdateAssetStatusByID :execrows
 UPDATE assets
-SET availability = ?
-WHERE id = ?;
-
--- name: UpdateAssetNeedsAttentionByID :execrows
-UPDATE assets
-SET attention_needed = ?
+SET attention_needed = ?,
+availability = ?
 WHERE id = ?;
 
 -- name: UpdateAssetEOLByID :execrows

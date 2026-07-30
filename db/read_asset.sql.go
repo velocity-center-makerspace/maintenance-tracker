@@ -11,14 +11,14 @@ import (
 	"github.com/google/uuid"
 )
 
-const countAssetFileReferences = `-- name: CountAssetFileReferences :one
+const countAssetFileRefsByID = `-- name: CountAssetFileRefsByID :one
 SELECT COUNT(*)
 FROM asset_files
 WHERE content_hash = ?
 `
 
-func (q *Queries) CountAssetFileReferences(ctx context.Context, contentHash string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countAssetFileReferences, contentHash)
+func (q *Queries) CountAssetFileRefsByID(ctx context.Context, contentHash string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAssetFileRefsByID, contentHash)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -184,6 +184,32 @@ func (q *Queries) ReadAsset(ctx context.Context, id uuid.UUID) (*ReadAssetRow, e
 		&i.AssetFile.OriginalFilename,
 	)
 	return &i, err
+}
+
+const readAttentionNeededByID = `-- name: ReadAttentionNeededByID :one
+SELECT attention_needed
+FROM assets
+WHERE id = ?
+`
+
+func (q *Queries) ReadAttentionNeededByID(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, readAttentionNeededByID, id)
+	var attention_needed string
+	err := row.Scan(&attention_needed)
+	return attention_needed, err
+}
+
+const readAvailabilityByID = `-- name: ReadAvailabilityByID :one
+SELECT availability
+FROM assets
+WHERE id = ?
+`
+
+func (q *Queries) ReadAvailabilityByID(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, readAvailabilityByID, id)
+	var availability string
+	err := row.Scan(&availability)
+	return availability, err
 }
 
 const readContentHashByAssetID = `-- name: ReadContentHashByAssetID :many

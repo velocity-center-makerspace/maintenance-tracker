@@ -12,20 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const updateAssetAvailabilityByID = `-- name: UpdateAssetAvailabilityByID :execrows
-UPDATE assets
-SET availability = ?
-WHERE id = ?
-`
-
-func (q *Queries) UpdateAssetAvailabilityByID(ctx context.Context, availability string, iD uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateAssetAvailabilityByID, availability, iD)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const updateAssetByID = `-- name: UpdateAssetByID :execrows
 UPDATE assets
 SET
@@ -89,14 +75,21 @@ func (q *Queries) UpdateAssetNameByID(ctx context.Context, name string, iD uuid.
 	return result.RowsAffected()
 }
 
-const updateAssetNeedsAttentionByID = `-- name: UpdateAssetNeedsAttentionByID :execrows
+const updateAssetStatusByID = `-- name: UpdateAssetStatusByID :execrows
 UPDATE assets
-SET attention_needed = ?
+SET attention_needed = ?,
+availability = ?
 WHERE id = ?
 `
 
-func (q *Queries) UpdateAssetNeedsAttentionByID(ctx context.Context, attentionNeeded string, iD uuid.UUID) (int64, error) {
-	result, err := q.db.ExecContext(ctx, updateAssetNeedsAttentionByID, attentionNeeded, iD)
+type UpdateAssetStatusByIDParams struct {
+	AttentionNeeded string    `json:"attention_needed"`
+	Availability    string    `json:"availability"`
+	ID              uuid.UUID `json:"id"`
+}
+
+func (q *Queries) UpdateAssetStatusByID(ctx context.Context, arg UpdateAssetStatusByIDParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateAssetStatusByID, arg.AttentionNeeded, arg.Availability, arg.ID)
 	if err != nil {
 		return 0, err
 	}

@@ -31,7 +31,7 @@ SELECT content_hash
 FROM asset_files
 WHERE asset_id = ?;
 
--- name: CountAssetFileReferences :one
+-- name: CountAssetFileRefsByID :one
 SELECT COUNT(*)
 FROM asset_files
 WHERE content_hash = ?;
@@ -40,3 +40,13 @@ WHERE content_hash = ?;
 SELECT path
 FROM files
 WHERE content_hash = ?;
+
+-- name: ReadAvailabilityByID :one
+SELECT availability
+FROM assets
+WHERE id = ?;
+
+-- name: ReadAttentionNeededByID :one
+SELECT attention_needed
+FROM assets
+WHERE id = ?;
