@@ -2,19 +2,12 @@ package assets
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"mime"
-	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -28,21 +21,6 @@ import (
 )
 
 var ErrUnsupportedContentType = errors.New("unsupported content type")
-
-type upload struct {
-	tmpPath  string
-	checksum string
-	ext      string
-	filename string
-	mimeType string
-}
-
-type fileMetadata struct {
-	contentHash string
-	mimeType    string
-	filename    string
-	path        string
-}
 
 func RegisterCreateAsset(r router.Router) {
 	r.AddRoute("POST /assets", CreateAsset)
@@ -66,7 +44,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 	asset := db.CreateAssetParams{}
 
-	dstRoot := deps.Env.UploadRoot
+	tempRoot := deps.Env.TempUploadRoot
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -76,13 +54,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	params := parsePartsParams{
-		asset:   &asset,
-		reader:  reader,
-		dstRoot: dstRoot,
-	}
-
-	uploads, err := parseParts(params)
+	uploads, dec, err := parseMultipart(reader, tempRoot)
 	if err != nil {
 		if errors.Is(err, ErrUnsupportedContentType) {
 			resp := response.New("Incompatible file type submitted")
@@ -93,6 +65,21 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		resp := response.New("Unable to retrieve form data")
 		resp.Write(w, http.StatusInternalServerError)
 		slog.Error("Unable to parse multipart reader parts", "error", err)
+		return
+	}
+
+	if err := dec.Decode(&asset); err != nil {
+		resp := response.New("Unable to read JSON from request")
+		resp.Write(w, http.StatusInternalServerError)
+		slog.Error("Unable to read JSON from request", "error", err)
+		return
+	}
+
+	asset.ID, err = uuid.NewV7()
+	if err != nil {
+		resp := response.New("Unable to create asset from data")
+		resp.Write(w, http.StatusInternalServerError)
+		slog.Error("Unable to create ID for new asset", "error", err, "asset-id", asset.ID)
 		return
 	}
 
@@ -138,7 +125,7 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 
 			params := processFileParams{
 				upload:  u,
-				dstRoot: dstRoot,
+				dstRoot: deps.Env.UploadRoot,
 				errChan: errChan,
 			}
 
@@ -185,162 +172,10 @@ func CreateAsset(deps router.Dependencies, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp := response.New("Asset created successfully")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
-	w.WriteHeader(http.StatusCreated)
-}
-
-type parsePartsParams struct {
-	reader  *multipart.Reader
-	asset   *db.CreateAssetParams
-	dstRoot string
-}
-
-func parseParts(p parsePartsParams) ([]upload, error) {
-	var uploads []upload
-	for {
-		part, err := p.reader.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		mimeType, _, err := mime.ParseMediaType(part.Header.Get("Content-Type"))
-		if err != nil {
-			return nil, err
-		}
-
-		switch mimeType {
-		default:
-			return nil, fmt.Errorf(
-				"%w: %q for part %s",
-				ErrUnsupportedContentType,
-				mimeType,
-				part.FormName(),
-			)
-		case "application/json":
-			if err := json.NewDecoder(part).Decode(p.asset); err != nil {
-				return nil, err
-			}
-			p.asset.ID, err = uuid.NewV7()
-			if err != nil || p.asset.ID == uuid.Nil {
-				return nil, fmt.Errorf("asset ID is %v and could not be set: %w", p.asset.ID, err)
-			}
-		case "application/pdf":
-			fallthrough
-		case "application/msword":
-			fallthrough
-		case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-			if part.FileName() == "" {
-				continue
-			}
-
-			tmp, err := os.CreateTemp(p.dstRoot, "upload-*.tmp")
-			if err != nil {
-				return nil, err
-			}
-
-			h := sha256.New()
-			tee := io.TeeReader(part, h)
-
-			if _, err := io.Copy(tmp, tee); err != nil {
-				return nil, err
-			}
-
-			if err := tmp.Close(); err != nil {
-				return nil, err
-			}
-
-			uploads = append(uploads,
-				upload{
-					tmpPath:  tmp.Name(),
-					checksum: hex.EncodeToString(h.Sum(nil)),
-					mimeType: mimeType,
-					filename: part.FileName(),
-					ext:      filepath.Ext(part.FileName()),
-				},
-			)
-		}
-	}
-
-	return uploads, nil
-}
-
-type processFileParams struct {
-	upload  upload
-	dstRoot string
-	errChan chan<- error
-}
-
-func processFile(p processFileParams) *fileMetadata {
-	tmp, err := os.Open(p.upload.tmpPath)
-	if err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	defer func() {
-		for attempts := range 3 {
-			err := os.Remove(p.upload.tmpPath)
-			if err == nil || errors.Is(err, os.ErrNotExist) {
-				return
-			}
-
-			// incrementally longer retrys
-			time.Sleep(10 * (1 << attempts) * time.Millisecond)
-		}
-		p.errChan <- fmt.Errorf("failed to remove after 3 attempts: %w", err)
-	}()
-
-	defer func() { _ = tmp.Close() }()
-
-	dstPath := filepath.Join(
-		p.dstRoot,
-		p.upload.checksum[:2],
-		p.upload.checksum[2:4],
-		p.upload.checksum+p.upload.ext,
-	)
-
-	if _, err := os.Stat(dstPath); err == nil {
-		return &fileMetadata{
-			contentHash: p.upload.checksum,
-			filename:    p.upload.filename,
-			mimeType:    p.upload.mimeType,
-			path:        dstPath,
-		}
-	}
-
-	if err := os.MkdirAll(filepath.Dir(dstPath), 0744); err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	dst, err := os.Create(dstPath)
-	if err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	defer func() {
-		if err := dst.Close(); err != nil {
-			p.errChan <- err
-		}
-	}()
-
-	if _, err := io.Copy(dst, tmp); err != nil {
-		p.errChan <- err
-		return nil
-	}
-
-	return &fileMetadata{
-		contentHash: p.upload.checksum,
-		filename:    p.upload.filename,
-		mimeType:    p.upload.mimeType,
-		path:        dstPath,
-	}
+	var args map[string]any
+	args["asset_id"] = asset.ID
+	resp := response.NewWithArgs("Asset created successfully", args)
+	resp.Write(w, http.StatusCreated)
 }
 
 type assetTxParams struct {
